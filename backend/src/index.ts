@@ -5,6 +5,15 @@ import { registerRoutes } from "./routes/api.js";
 
 const app = Fastify({ logger: true });
 
+// HappyRobot (and some clients) send Content-Type: application/json with no body
+app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
+  try {
+    done(null, body ? JSON.parse(body) : {});
+  } catch (err) {
+    done(err as Error, undefined);
+  }
+});
+
 app.addHook("onRequest", authMiddleware);
 
 app.get("/health", async () => ({
