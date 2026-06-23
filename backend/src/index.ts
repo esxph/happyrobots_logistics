@@ -8,7 +8,8 @@ const app = Fastify({ logger: true });
 // HappyRobot (and some clients) send Content-Type: application/json with no body
 app.addContentTypeParser("application/json", { parseAs: "string" }, (req, body, done) => {
   try {
-    done(null, body ? JSON.parse(body) : {});
+    const text = typeof body === "string" ? body : body.toString("utf8");
+    done(null, text ? JSON.parse(text) : {});
   } catch (err) {
     done(err as Error, undefined);
   }
