@@ -24,3 +24,6 @@ backend/data/
 
 # Test artifacts
 coverage/
+
+# Local docs
+*.pdf
