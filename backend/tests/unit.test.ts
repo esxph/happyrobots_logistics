@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getMockCarrierVerification } from "../src/fmcsa/mock-carriers.js";
 import {
   buildLoadQueryRequest,
   parseErrorLine,
@@ -46,6 +47,20 @@ describe("TMS parser", () => {
     expect(req).toContain("ORIG_STATE:GA");
     expect(req).toContain("EQTYPE:DRY_VAN");
     expect(req.endsWith("\r\n")).toBe(true);
+  });
+});
+
+describe("demo mock carrier", () => {
+  it("returns authorized carrier with demo phone for DEMO_MC_NUMBER", () => {
+    const result = getMockCarrierVerification("999999");
+    expect(result).not.toBeNull();
+    expect(result?.authorized).toBe(true);
+    expect(result?.registered_phone).toBe("+525510506746");
+    expect(result?.legal_name).toBe("HappyRobot Demo Carrier");
+  });
+
+  it("returns null for real MC numbers", () => {
+    expect(getMockCarrierVerification("872144")).toBeNull();
   });
 });
 

@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { AppError } from "../lib/errors.js";
+import { getMockCarrierVerification } from "./mock-carriers.js";
 
 export interface CarrierVerification {
   authorized: boolean;
@@ -50,6 +51,9 @@ export class FmcsaClient {
     if (!mc) {
       throw new AppError("Invalid MC number", "INVALID_MC", 400, "I need a valid MC number to continue.");
     }
+
+    const mock = getMockCarrierVerification(mc);
+    if (mock) return mock;
 
     const url = `${config.FMCSA_BASE_URL}/carriers/docket-number/${mc}?webKey=${config.FMCSA_WEB_KEY}`;
     const res = await fetch(url);
