@@ -28,6 +28,11 @@ const envSchema = z.object({
   OTP_MAX_ATTEMPTS: z.coerce.number().default(3),
   TWIN_DATA_DIR: z.string().default("./data/twin"),
   OTP_PHONE_OVERRIDE: z.string().optional(),
+  /** Include OTP code in send_otp JSON (POC / HappyRobot SMS pipeline). Set false in production. */
+  OTP_RETURN_CODE_IN_RESPONSE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   /** Fake MC for demos — skips FMCSA; use this MC in voice tests for happy path + OTP */
   DEMO_MC_NUMBER: z.string().default("999999"),
   DEMO_MC_LEGAL_NAME: z.string().default("HappyRobot Demo Carrier"),

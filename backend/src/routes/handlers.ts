@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { config } from "../config.js";
 import { fmcsaClient } from "../fmcsa/client.js";
 import { otpService } from "../otp/service.js";
 import { AppError } from "../lib/errors.js";
@@ -162,7 +163,10 @@ export async function handleSendOtp(request: FastifyRequest, reply: FastifyReply
 
   reply.send({
     sent: true,
+    registered_phone: verification.registered_phone,
     masked_phone: sent.masked_phone,
+    ...(config.OTP_RETURN_CODE_IN_RESPONSE ? { code: sent.code } : {}),
+    expires_in_seconds: config.OTP_TTL_SECONDS,
     voice_message: `I've sent a verification code to the phone number on file ending in ${sent.masked_phone.slice(-4)}.`,
   });
 }

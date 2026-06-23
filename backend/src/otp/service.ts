@@ -23,7 +23,11 @@ function generateCode(): string {
 }
 
 export class OtpService {
-  send(sessionId: string, mcNumber: string, phone: string): { sent: boolean; masked_phone: string } {
+  send(
+    sessionId: string,
+    mcNumber: string,
+    phone: string,
+  ): { sent: boolean; masked_phone: string; code: string } {
     if (!phone) {
       throw new AppError(
         "No registered phone on file",
@@ -47,7 +51,7 @@ export class OtpService {
     console.info(`[OTP] session=${sessionId} mc=${mcNumber} phone=${phone} code=${code}`);
 
     const masked = phone.length > 4 ? `***${phone.slice(-4)}` : "****";
-    return { sent: true, masked_phone: masked };
+    return { sent: true, masked_phone: masked, code };
   }
 
   verify(sessionId: string, code: string): { verified: boolean } {
