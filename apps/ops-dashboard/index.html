@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carrier Sales Ops Dashboard</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #111; background: #f6f4ef; }
+    body { margin: 0; padding: 24px; }
+    h1 { margin: 0 0 8px; font-size: 1.25rem; }
+    .sub { color: #666; margin-bottom: 24px; font-size: 0.9rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+    .card .label { font-size: 0.75rem; text-transform: uppercase; color: #666; }
+    .card .value { font-size: 1.5rem; font-weight: 600; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.85rem; }
+    th { background: #fafafa; font-size: 0.75rem; text-transform: uppercase; color: #666; }
+    .filters { margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+    input, select, button { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; }
+    button { background: #111; color: #fff; border-color: #111; cursor: pointer; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; background: #eee; }
+    .badge.booked { background: #d1fae5; }
+    .badge.failed { background: #fee2e2; }
+  </style>
+</head>
+<body>
+  <h1>Inbound Carrier Sales — Operations</h1>
+  <p class="sub">Live signals from Twin call log (no raw platform logs)</p>
+
+  <div class="config">
+    <label>API URL <input id="apiUrl" value="http://localhost:8080" style="width:240px" /></label>
+    <label>API Key <input id="apiKey" type="password" placeholder="Bearer token" style="width:200px" /></label>
+    <button onclick="refresh()">Refresh</button>
+  </div>
+
+  <div class="cards" id="kpis"></div>
+
+  <div class="filters">
+    <select id="outcomeFilter" onchange="renderTable()">
+      <option value="">All outcomes</option>
+      <option value="booked">booked</option>
+      <option value="failed_verification">failed_verification</option>
+      <option value="failed_otp">failed_otp</option>
+      <option value="failed_negotiation">failed_negotiation</option>
+      <option value="no_match">no_match</option>
+    </select>
+    <input id="mcFilter" placeholder="Filter MC" oninput="renderTable()" />
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>MC</th>
+        <th>Outcome</th>
+        <th>Load</th>
+        <th>Rate</th>
+        <th>Rounds</th>
+        <th>Handoff</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    let calls = [];
+
+    async function refresh() {
+      const base = document.getElementById('apiUrl').value.replace(/\/$/, '');
+      const key = document.getElementById('apiKey').value;
+      const headers = { Authorization: `Bearer ${key}` };
+      const [kpiRes, callRes] = await Promise.all([
+        fetch(`${base}/ops/kpis`, { headers }),
+        fetch(`${base}/ops/calls`, { headers }),
+      ]);
+      const kpiData = await kpiRes.json();
+      const callData = await callRes.json();
+      calls = callData.calls || [];
+      renderKpis(kpiData.kpis || {});
+      renderTable();
+    }
+
+    function renderKpis(k) {
+      const items = [
+        ['Total calls', k.total_calls ?? 0],
+        ['Booking rate', ((k.booking_rate ?? 0) * 100).toFixed(1) + '%'],
+        ['FMCSA pass', ((k.verification_pass_rate ?? 0) * 100).toFixed(1) + '%'],
+        ['OTP pass', ((k.otp_pass_rate ?? 0) * 100).toFixed(1) + '%'],
+        ['Failed negotiation', k.failed_negotiation_count ?? 0],
+        ['Max rate breaches', k.max_rate_breach_count ?? 0],
+      ];
+      document.getElementById('kpis').innerHTML = items.map(([label, value]) =>
+        `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`
+      ).join('');
+    }
+
+    function renderTable() {
+      const outcome = document.getElementById('outcomeFilter').value;
+      const mc = document.getElementById('mcFilter').value.trim();
+      const filtered = calls.filter(c =>
+        (!outcome || c.outcome === outcome) &&
+        (!mc || (c.carrier_mc || '').includes(mc))
+      );
+      document.getElementById('rows').innerHTML = filtered.map(c => `
+        <tr>
+          <td>${new Date(c.ended_at).toLocaleString()}</td>
+          <td>${c.carrier_mc || '—'}</td>
+          <td><span class="badge ${c.outcome === 'booked' ? 'booked' : c.outcome.startsWith('failed') ? 'failed' : ''}">${c.outcome}</span></td>
+          <td>${c.load_offered_id || '—'}</td>
+          <td>${c.agreed_rate ? '$' + c.agreed_rate : '—'}</td>
+          <td>${c.negotiation_rounds}</td>
+          <td>${c.handoff_queue_id || '—'}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="7">No calls yet</td></tr>';
+    }
+  </script>
+</body>
+</html>
