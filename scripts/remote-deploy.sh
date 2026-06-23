@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEPLOY_ENV="${DEPLOY_ENV:-$REPO_ROOT/deploy.env}"
 
 if [[ ! -f "$DEPLOY_ENV" ]]; then
-  echo "Missing $DEPLOY_ENV — copy deploy.env.example and fill SSH details"
+  echo "Missing $DEPLOY_ENV — create deploy.env with SSH details"
   exit 1
 fi
 
