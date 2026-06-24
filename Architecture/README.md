@@ -362,6 +362,7 @@ flowchart TD
 - `max_rate` / `MAX_BUY` never returned in API responses to carriers
 - OTP required before loads or negotiation
 - Booking uses session `agreed_rate` only (`book_load` body: `{ session_id }`)
+- Booking performs a fresh TMS status check before final confirmation
 - Numeric strings coerced in `negotiate_rate` (`"2400"`, `"$2,400"` → number)
 
 ---
@@ -388,8 +389,6 @@ All tools under `/api/v1/*`. Catalog: `GET /api/v1`.
 
 **Auth:** `Authorization: Bearer <API_KEY>` or `X-API-Key: <API_KEY>`  
 **Public:** `GET /health` only
-
-Full reference: [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
@@ -574,5 +573,4 @@ npm run build && npm start   # production-like
 
 ## Related docs
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — compact API + policy reference
 - [../README.md](../README.md) — deploy checklist and troubleshooting
