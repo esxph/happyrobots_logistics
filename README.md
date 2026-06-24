@@ -58,10 +58,9 @@ HappyRobot base URL: `https://your-domain.com`
 
 ### 5. Wire HappyRobot
 
-1. Paste [workflow/AGENT_PROMPT.md](workflow/AGENT_PROMPT.md) into the voice agent
-2. Create HTTP tools → `https://your-domain.com/api/v1/*`
-3. Auth: `Authorization: Bearer <API_KEY>`
-4. Enable **web call** trigger
+1. Create HTTP tools → `https://your-domain.com/api/v1/*`
+2. Auth: `Authorization: Bearer <API_KEY>`
+3. Enable **web call** trigger
 
 Tool catalog: `GET /api/v1`
 
@@ -84,10 +83,8 @@ npm test
 | Path | Purpose |
 |------|---------|
 | [backend/](backend/) | Integration API — **deploy this** |
-| [workflow/AGENT_PROMPT.md](workflow/AGENT_PROMPT.md) | Voice agent instructions |
 | [Architecture/](Architecture/) | System diagrams & design |
 | [apps/ops-dashboard/](apps/ops-dashboard/) | Ops UI |
-| [docs/](docs/) | Build description, QA, submission email |
 
 ---
 
@@ -126,7 +123,4 @@ docker compose up --build -d          # redeploy after changes
 
 ## Documentation
 
-- [Architecture/README.md](Architecture/README.md) — Mermaid diagrams
-- [docs/BUILD_DESCRIPTION.md](docs/BUILD_DESCRIPTION.md) — build summary
-- [docs/QA_RESULTS.md](docs/QA_RESULTS.md) — test plan
-- [docs/REFERENCES.md](docs/REFERENCES.md) — external links
+- [Architecture/README.md](Architecture/README.md) — full architecture (stack, Docker, modules, diagrams)

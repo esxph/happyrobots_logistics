@@ -1,17 +1,19 @@
-# Architecture details
+# Architecture reference (compact)
+
+Full stack, Docker, module map, and diagrams: **[README.md](./README.md)**.
 
 ## Components
 
 | Component | Role |
 |-----------|------|
 | **HappyRobot Voice** | Inbound call UX, tool orchestration, SMS |
-| **Integration API** (`backend/`) | Single proxy for FMCSA, TMS, OTP, negotiation, logging |
+| **Integration API** (`backend/`) | Node 22 / TypeScript / Fastify — proxies FMCSA, TMS, OTP, negotiation |
 | **FMCSA** | MC authority verification (REST) |
-| **Legacy TMS** | Load search, detail, booking (TCP) |
-| **Twin (POC)** | JSON call logs in `backend/data/twin/` |
-| **Ops dashboard** | Static UI → `/ops/calls`, `/ops/kpis` |
+| **Legacy TMS** | Load search, detail, booking (TCP fixed-width protocol) |
+| **Twin** | JSON logs in Docker volume + optional HappyRobot `carrier_calls` table |
+| **Ops dashboard** | Static HTML → `/ops/calls`, `/ops/kpis` |
 
-HappyRobot uses **one base URL** and **one API key**. FMCSA/TMS secrets stay on the server.
+HappyRobot uses **one base URL** and **one `API_KEY`**. FMCSA, TMS, and `HP_API` stay on the server.
 
 ## API endpoints (`/api/v1`)
 
@@ -39,37 +41,29 @@ HappyRobot uses **one base URL** and **one API key**. FMCSA/TMS secrets stay on 
 - Max 3 negotiation counter rounds
 - Fresh TMS status check before booking
 
-## POC storage
+## POC storage → production
 
-| Data | POC | Production target |
-|------|-----|-------------------|
-| Sessions | In-memory | Redis |
-| OTP | In-memory | Redis (hashed) |
-| Call logs | JSON files | Postgres + Twin |
-| TMS cache | In-memory (45s) | Redis (optional) |
+| Data | POC | Production |
+|------|-----|------------|
+| Sessions | In-memory | **Redis** (TTL) |
+| OTP | In-memory plaintext | **Redis** (HMAC hash, TTL, attempt counter) |
+| Call logs | JSON volume + Twin | **Twin only** |
+| TMS cache | In-memory 45s | Redis (optional) |
+
+See [README.md](./README.md#production-data-layer--redis-nosql-recommendation) for Redis key patterns, secure OTP checklist, and Compose sketch.
 
 ## Deployment
 
-```mermaid
-flowchart LR
-    HR[HappyRobot] -->|HTTPS| API[Docker :8080]
-    API --> FMCSA
-    API --> TMS
-    API --> Vol[data/twin volume]
-```
+See [README.md](./README.md#docker-deployment) for Dockerfile, Compose, volumes, and healthcheck.
 
 ```bash
 cd backend && cp .env.example .env && docker compose up --build -d
 ```
 
-See [../README.md](../README.md) for full deploy steps.
-
 ## Repository layout
 
 ```text
 backend/           Integration API (deploy this)
-workflow/          Voice agent prompt
 Architecture/      This folder
 apps/ops-dashboard/  Ops UI
-docs/              Submission documents
 ```

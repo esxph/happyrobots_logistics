@@ -27,3 +27,5 @@ coverage/
 
 # Local docs
 *.pdf
+docs/
+workflow/
