@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getMockCarrierVerification } from "../src/fmcsa/mock-carriers.js";
+import { optionalPositiveApiNumber } from "../src/lib/schemas.js";
 import {
   buildLoadQueryRequest,
   parseErrorLine,
@@ -61,6 +62,20 @@ describe("demo mock carrier", () => {
 
   it("returns null for real MC numbers", () => {
     expect(getMockCarrierVerification("872144")).toBeNull();
+  });
+});
+
+describe("api numeric coercion", () => {
+  it("coerces string counter rates", () => {
+    expect(optionalPositiveApiNumber.parse("2400")).toBe(2400);
+  });
+
+  it("coerces currency-formatted strings", () => {
+    expect(optionalPositiveApiNumber.parse("$2,400")).toBe(2400);
+  });
+
+  it("accepts real numbers", () => {
+    expect(optionalPositiveApiNumber.parse(2400)).toBe(2400);
   });
 });
 

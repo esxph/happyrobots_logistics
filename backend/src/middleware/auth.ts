@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { ZodError } from "zod";
 import { config } from "../config.js";
 import { AppError } from "../lib/errors.js";
 
@@ -26,6 +27,15 @@ export function handleError(error: unknown, reply: FastifyReply): void {
       error: error.code,
       message: error.message,
       voice_message: error.voiceMessage ?? error.message,
+    });
+    return;
+  }
+
+  if (error instanceof ZodError) {
+    reply.code(400).send({
+      error: "VALIDATION_ERROR",
+      message: error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; "),
+      voice_message: "I didn't catch that correctly. Can you repeat the rate?",
     });
     return;
   }

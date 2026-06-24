@@ -9,6 +9,7 @@ import { twinLogger } from "../twin/logger.js";
 import { tmsClient } from "../tms/client.js";
 import { TmsError } from "../lib/errors.js";
 import { negotiate, toCarrierSafeLoad } from "../negotiation/engine.js";
+import { optionalPositiveApiNumber, optionalMaxResults } from "../lib/schemas.js";
 
 const sessionBody = z.object({ session_id: z.string().uuid().optional() });
 
@@ -32,13 +33,13 @@ const searchLoadsBody = z.object({
   destination_state: z.string().optional(),
   equipment_type: z.string().optional(),
   lane_preference: z.string().optional(),
-  max_results: z.number().int().positive().max(20).optional(),
+  max_results: optionalMaxResults,
 });
 
 const negotiateBody = z.object({
   session_id: z.string().uuid(),
   action: z.enum(["accept", "reject", "counter"]),
-  carrier_counter_rate: z.number().positive().optional(),
+  carrier_counter_rate: optionalPositiveApiNumber,
 });
 
 const bookBody = z.object({ session_id: z.string().uuid() });
