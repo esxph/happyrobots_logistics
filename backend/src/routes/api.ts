@@ -97,6 +97,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   registerToolRoutes(app, {
     method: "post",
+    path: "/api/v1/accept_first_rate",
+    handler: wrap(handleNegotiateRate),
+  });
+
+  registerToolRoutes(app, {
+    method: "post",
     path: "/api/v1/book_load",
     handler: wrap(handleBookLoad),
   }, { method: "post", path: "/book-load" });

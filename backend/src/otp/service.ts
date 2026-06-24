@@ -8,6 +8,7 @@ interface OtpRecord {
   mc_number: string;
   expires_at: number;
   attempts: number;
+  pending_digits: string;
   verified: boolean;
 }
 
@@ -20,6 +21,43 @@ function otpKey(sessionId: string): string {
 function generateCode(): string {
   const max = 10 ** config.OTP_LENGTH;
   return String(randomInt(0, max)).padStart(config.OTP_LENGTH, "0");
+}
+
+const DIGIT_WORDS: Record<string, string> = {
+  zero: "0",
+  oh: "0",
+  o: "0",
+  one: "1",
+  won: "1",
+  two: "2",
+  to: "2",
+  too: "2",
+  three: "3",
+  four: "4",
+  for: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  ate: "8",
+  nine: "9",
+};
+
+/** Voice ASR often returns spaced, punctuated, or spoken digits. */
+export function normalizeOtpCode(code: string): string {
+  const wordsAsDigits = code
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .split(/\s+/)
+    .map((token) => {
+      const cleaned = token.replace(/[^a-z0-9]/g, "");
+      if (/^\d+$/.test(cleaned)) return cleaned;
+      return DIGIT_WORDS[cleaned] ?? "";
+    })
+    .join("");
+
+  const literalDigits = code.replace(/\D/g, "");
+  return wordsAsDigits || literalDigits;
 }
 
 export class OtpService {
@@ -44,6 +82,7 @@ export class OtpService {
       mc_number: mcNumber,
       expires_at: Date.now() + config.OTP_TTL_SECONDS * 1000,
       attempts: 0,
+      pending_digits: "",
       verified: false,
     });
 
@@ -70,11 +109,26 @@ export class OtpService {
       throw new AppError("OTP locked", "OTP_LOCKED", 403, "Too many incorrect attempts. This call cannot continue.");
     }
 
+    const incoming = normalizeOtpCode(code);
+    const combined = `${record.pending_digits}${incoming}`;
+    if (combined.length < config.OTP_LENGTH) {
+      record.pending_digits = combined;
+      throw new AppError(
+        "Partial OTP",
+        "OTP_PARTIAL",
+        400,
+        `I have ${combined.length} digits. Please give me the remaining ${config.OTP_LENGTH - combined.length} digits.`,
+      );
+    }
+
     record.attempts += 1;
-    if (record.code !== code.trim()) {
+    const candidate = combined.slice(0, config.OTP_LENGTH);
+    if (record.code !== candidate) {
+      record.pending_digits = "";
       throw new AppError("Invalid OTP", "OTP_INVALID", 400, "That code is incorrect. Please try again.");
     }
 
+    record.pending_digits = "";
     record.verified = true;
     return { verified: true };
   }

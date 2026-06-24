@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import Fastify from "fastify";
 import { getMockCarrierVerification } from "../src/fmcsa/mock-carriers.js";
 import { optionalPositiveApiNumber } from "../src/lib/schemas.js";
 import {
@@ -9,6 +10,10 @@ import {
   toLoadSummary,
 } from "../src/tms/parser.js";
 import { negotiate } from "../src/negotiation/engine.js";
+import { AppError } from "../src/lib/errors.js";
+import { OtpService, normalizeOtpCode, otpService } from "../src/otp/service.js";
+import { createSession, updateSession } from "../src/sessions/store.js";
+import { registerRoutes } from "../src/routes/api.js";
 
 describe("TMS parser", () => {
   it("parses LOAD_QUERY response line", () => {
@@ -79,6 +84,45 @@ describe("api numeric coercion", () => {
   });
 });
 
+describe("OTP normalization", () => {
+  it("strips non-digits from spoken codes", () => {
+    expect(normalizeOtpCode("1 2 3 4 5 6")).toBe("123456");
+    expect(normalizeOtpCode("123-456")).toBe("123456");
+    expect(normalizeOtpCode("one two three four five six")).toBe("123456");
+    expect(normalizeOtpCode("the code is one two 345")).toBe("12345");
+  });
+
+  it("accepts spaced digits on verify", () => {
+    const svc = new OtpService();
+    const sessionId = "550e8400-e29b-41d4-a716-446655440000";
+    const sent = svc.send(sessionId, "999999", "+15551234567");
+    const spaced = sent.code.split("").join(" ");
+    expect(svc.verify(sessionId, spaced).verified).toBe(true);
+  });
+
+  it("combines split OTP tool calls without burning attempts", () => {
+    const svc = new OtpService();
+    const sessionId = "550e8400-e29b-41d4-a716-446655440001";
+    const sent = svc.send(sessionId, "999999", "+15551234567");
+
+    expect(() => svc.verify(sessionId, sent.code.slice(0, 3))).toThrow(AppError);
+    expect(svc.verify(sessionId, sent.code.slice(3)).verified).toBe(true);
+  });
+
+  it("combines spoken split OTP tool calls", () => {
+    const svc = new OtpService();
+    const sessionId = "550e8400-e29b-41d4-a716-446655440002";
+    const sent = svc.send(sessionId, "999999", "+15551234567");
+    const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+    const spoken = sent.code
+      .split("")
+      .map((digit) => words[Number(digit)]);
+
+    expect(() => svc.verify(sessionId, spoken.slice(0, 3).join(" "))).toThrow(AppError);
+    expect(svc.verify(sessionId, spoken.slice(3).join(" ")).verified).toBe(true);
+  });
+});
+
 describe("negotiation engine", () => {
   it("accepts at or below max rate", () => {
     const result = negotiate({
@@ -115,5 +159,66 @@ describe("negotiation engine", () => {
       round: 3,
     });
     expect(result.status).toBe("failed_negotiation");
+  });
+
+  it("accepts a carrier counter $5 below the current offer", () => {
+    const result = negotiate({
+      action: "counter",
+      carrier_counter_rate: 2434,
+      current_offer_rate: 2439,
+      loadboard_rate: 2439,
+      max_rate: 2600,
+      round: 0,
+    });
+    expect(result.status).toBe("accepted");
+    expect(result.agreed_rate).toBe(2434);
+  });
+});
+
+describe("negotiation API routes", () => {
+  it("accept_first_rate accepts default rate with session_id only", async () => {
+    const app = Fastify();
+    await registerRoutes(app);
+
+    const session = createSession();
+    const sent = otpService.send(session.id, "999999", "+15551234567");
+    otpService.verify(session.id, sent.code);
+    updateSession(session.id, {
+      carrier_mc: "999999",
+      otp_status: "verified",
+      current_offer_rate: 2439,
+      load_offered: {
+        load_id: "LDTEST000001",
+        origin: "Miami, FL",
+        destination: "Oklahoma City, OK",
+        origin_zip: "33101",
+        destination_zip: "73102",
+        pickup_datetime: "2026-06-24T06:00:00.000Z",
+        delivery_datetime: "2026-06-25T15:00:00.000Z",
+        equipment_type: "REEFER",
+        loadboard_rate: 2439,
+        max_rate: 2600,
+        weight: 8769,
+        commodity_type: "steel coils",
+        num_of_pieces: 12,
+        miles: 1500,
+        dimensions: "48x8x9 ft",
+        notes: "",
+        status: "OPEN",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/accept_first_rate",
+      payload: { session_id: session.id },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.status).toBe("accepted");
+    expect(body.agreed_rate).toBe(2439);
+
+    await app.close();
   });
 });

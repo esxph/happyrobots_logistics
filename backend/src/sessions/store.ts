@@ -1,4 +1,5 @@
 import type { LoadDetail, LoadSummary } from "../tms/types.js";
+import { AppError } from "../lib/errors.js";
 
 export type CallOutcome =
   | "in_progress"
@@ -67,6 +68,19 @@ export function getSession(id: string): CallSession {
   const session = sessions.get(id);
   if (!session) {
     throw new Error(`Session not found: ${id}`);
+  }
+  return session;
+}
+
+export function requireSession(id: string): CallSession {
+  const session = sessions.get(id);
+  if (!session) {
+    throw new AppError(
+      "Session not found",
+      "SESSION_NOT_FOUND",
+      404,
+      "I lost track of this call session. Please hang up and call back so we can start fresh.",
+    );
   }
   return session;
 }

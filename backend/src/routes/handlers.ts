@@ -4,7 +4,7 @@ import { config } from "../config.js";
 import { fmcsaClient } from "../fmcsa/client.js";
 import { otpService } from "../otp/service.js";
 import { AppError } from "../lib/errors.js";
-import { createSession, getSession, updateSession } from "../sessions/store.js";
+import { createSession, getSession, requireSession, updateSession } from "../sessions/store.js";
 import { twinLogger } from "../twin/logger.js";
 import { tmsClient } from "../tms/client.js";
 import { TmsError } from "../lib/errors.js";
@@ -22,7 +22,7 @@ const otpSendBody = z.object({ session_id: z.string().uuid() });
 
 const otpVerifyBody = z.object({
   session_id: z.string().uuid(),
-  code: z.string().min(4),
+  code: z.string().min(1),
 });
 
 const searchLoadsBody = z.object({
@@ -38,7 +38,7 @@ const searchLoadsBody = z.object({
 
 const negotiateBody = z.object({
   session_id: z.string().uuid(),
-  action: z.enum(["accept", "reject", "counter"]),
+  action: z.enum(["accept", "reject", "counter"]).default("accept"),
   carrier_counter_rate: optionalPositiveApiNumber,
 });
 
@@ -66,6 +66,7 @@ export const API_CATALOG = {
     { name: "verify_otp", method: "POST", path: "/api/v1/verify_otp" },
     { name: "find_available_loads", method: "POST", path: "/api/v1/find_available_loads", proxies: "TMS" },
     { name: "get_load_detail", method: "GET", path: "/api/v1/loads/:load_id", proxies: "TMS" },
+    { name: "accept_first_rate", method: "POST", path: "/api/v1/accept_first_rate" },
     { name: "negotiate_rate", method: "POST", path: "/api/v1/negotiate_rate" },
     { name: "book_load", method: "POST", path: "/api/v1/book_load", proxies: "TMS" },
     { name: "transfer_to_colleague", method: "POST", path: "/api/v1/transfer_to_colleague" },
@@ -174,7 +175,7 @@ export async function handleSendOtp(request: FastifyRequest, reply: FastifyReply
 
 export async function handleVerifyOtp(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const body = otpVerifyBody.parse(request.body);
-  const session = getSession(body.session_id);
+  const session = requireSession(body.session_id);
   otpService.verify(body.session_id, body.code);
   updateSession(body.session_id, {
     otp_status: "verified",
@@ -182,7 +183,9 @@ export async function handleVerifyOtp(request: FastifyRequest, reply: FastifyRep
   });
   reply.send({
     verified: true,
-    voice_message: "Identity verified. Let's find a load for you.",
+    next_step: "load_search",
+    voice_message:
+      "Identity verified. What lane are you looking for — origin and destination?",
   });
 }
 
