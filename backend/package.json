@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "twin:schema": "node scripts/apply-twin-schema.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

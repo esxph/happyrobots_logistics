@@ -38,6 +38,14 @@ const envSchema = z.object({
   DEMO_MC_LEGAL_NAME: z.string().default("HappyRobot Demo Carrier"),
   DEMO_MC_DOT: z.string().default("1234567"),
   DEMO_MC_PHONE: z.string().default("+525510506746"),
+  /** HappyRobot platform API key (sk_live_...) — enables Twin dual-write when set */
+  HP_API: z.string().min(8).optional(),
+  HP_BASE_URL: z.string().url().default("https://platform.happyrobot.ai/api/v2"),
+  HP_TWIN_TABLE: z.string().default("carrier_calls"),
+  HP_TWIN_SYNC: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
 });
 
 export type Config = z.infer<typeof envSchema>;

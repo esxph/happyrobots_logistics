@@ -2,24 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
 import type { CallSession } from "../sessions/store.js";
+import { happyRobotTwin } from "./happyrobot-twin.js";
+import type { TwinCallRecord } from "./types.js";
 
-export interface TwinCallRecord {
-  call_id: string;
-  carrier_mc: string | null;
-  fmcsa_status: string | null;
-  otp_status: string;
-  lane_preference: string | null;
-  equipment_type: string | null;
-  loads_searched_count: number;
-  load_offered_id: string | null;
-  negotiation_rounds: number;
-  agreed_rate: number | null;
-  outcome: string;
-  notes: string[];
-  handoff_queue_id: string | null;
-  started_at: string;
-  ended_at: string;
-}
+export type { TwinCallRecord } from "./types.js";
 
 async function ensureDir(): Promise<void> {
   await fs.mkdir(config.TWIN_DATA_DIR, { recursive: true });
@@ -63,6 +49,11 @@ export class TwinLogger {
     const filtered = index.filter((r) => r.call_id !== record.call_id);
     filtered.unshift(record);
     await fs.writeFile(indexFile, JSON.stringify(filtered.slice(0, 500), null, 2), "utf8");
+
+    void happyRobotTwin.upsertCallRecord(record).catch((err) => {
+      console.warn("[twin] HappyRobot sync failed:", err instanceof Error ? err.message : err);
+    });
+
     return record;
   }
 
